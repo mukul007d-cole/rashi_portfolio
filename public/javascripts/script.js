@@ -82,7 +82,7 @@ function animateNumber(element, target) {
 const contactForm = document.getElementById("contactForm");
 
 if (contactForm) {
-  contactForm.addEventListener("submit", function (e) {
+  contactForm.addEventListener("submit", async function (e) {
     e.preventDefault();
 
     const formData = new FormData(this);
@@ -101,12 +101,31 @@ if (contactForm) {
     submitBtn.textContent = "Sending...";
     submitBtn.disabled = true;
 
-    setTimeout(() => {
-      alert("Message sent successfully!");
-      this.reset();
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
-    }, 2000);
+    try {
+  const res = await fetch("/contact", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ name, email, message })
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    alert("Message sent successfully!");
+    this.reset();
+  } else {
+    alert("Failed to send message");
+  }
+} catch (err) {
+  alert("Server error");
+  console.error(err);
+}
+
+submitBtn.textContent = originalText;
+submitBtn.disabled = false;
+
   });
 }
 
