@@ -17,6 +17,7 @@ Set these in Render:
 - `SMTP_PORT` - SMTP port (optional, defaults to `587`)
 - `SMTP_SECURE` - `true` for SSL (typically port 465), `false` for STARTTLS (typically 587)
 
+
 ### 3) Start behavior
 - The app binds to `process.env.PORT` (required by Render).
 - Health check endpoint is available at `/healthz`.
@@ -37,4 +38,3 @@ If the contact endpoint times out, verify:
 - `EMAIL_USER` and `EMAIL_PASS` are set in the runtime environment.
 - Outbound SMTP to your configured `SMTP_HOST`/`SMTP_PORT` is allowed by your hosting provider.
 
-The app now loads `.env` automatically for local development and uses shorter SMTP timeouts so failures return faster.

@@ -1,5 +1,5 @@
 var express = require('express');
-var router = express.Router();
+var https = require('https');
 var nodemailer = require('nodemailer');
 
 function getEmailConfig() {
@@ -29,6 +29,61 @@ function createTransporter(config) {
       user: config.emailUser,
       pass: config.emailPass,
     },
+    connectionTimeout: config.smtpConnectionTimeout,
+    greetingTimeout: config.smtpGreetingTimeout,
+    socketTimeout: config.smtpSocketTimeout,
+  });
+}
+
+function sendWithResend(config, payload) {
+  return new Promise(function (resolve, reject) {
+    if (!config.resendApiKey || !config.resendFrom || !config.contactTo) {
+      return reject(new Error('Resend is not configured'));
+    }
+
+    var body = JSON.stringify({
+      from: config.resendFrom,
+      to: [config.contactTo],
+      reply_to: payload.replyTo,
+      subject: payload.subject,
+      html: payload.html,
+    });
+
+    var req = https.request(
+      {
+        hostname: 'api.resend.com',
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + config.resendApiKey,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+        timeout: 10000,
+      },
+      function (res) {
+        var chunks = '';
+        res.on('data', function (chunk) {
+          chunks += chunk;
+        });
+
+        res.on('end', function () {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            return resolve();
+          }
+
+          reject(new Error('Resend API error ' + res.statusCode + ': ' + chunks));
+        });
+      }
+    );
+
+    req.on('timeout', function () {
+      req.destroy(new Error('Resend API timeout'));
+    });
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
     connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || 10000),
     greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
     socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 15000),
@@ -51,9 +106,22 @@ router.post('/contact', async function (req, res) {
   if (!transporter || !config.contactTo) {
     return res.status(500).json({
       success: false,
-      error: 'Email service is not configured. Set EMAIL_USER and EMAIL_PASS.',
+      error: 'Email service is not configured. Set CONTACT_TO and provider credentials.',
     });
   }
+
+  var mailPayload = {
+    from: `"Portfolio Contact" <${config.emailUser}>`,
+    to: config.contactTo,
+    replyTo: email,
+    subject: 'New Portfolio Message',
+    html: `
+      <h3>New Message</h3>
+      <p><b>Name:</b> ${name}</p>
+      <p><b>Email:</b> ${email}</p>
+      <p><b>Message:</b><br>${message}</p>
+    `,
+  };
 
   try {
     await transporter.sendMail({
@@ -69,7 +137,8 @@ router.post('/contact', async function (req, res) {
       `,
     });
 
-    res.json({ success: true });
+    await transporter.sendMail(mailPayload);
+    return res.json({ success: true, provider: 'smtp' });
   } catch (err) {
     console.error('Email send failed:', err.message, { code: err.code, command: err.command });
     res.status(500).json({ success: false, error: 'Failed to send message' });
