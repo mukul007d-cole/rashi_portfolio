@@ -13,6 +13,11 @@ Set these in Render:
 - `EMAIL_USER` - Gmail address used to send mail
 - `EMAIL_PASS` - Gmail app password
 - `CONTACT_TO` - Destination inbox for contact form submissions (optional, defaults to `EMAIL_USER`)
+- `SMTP_HOST` - SMTP host (optional, defaults to `smtp.gmail.com`)
+- `SMTP_PORT` - SMTP port (optional, defaults to `587`)
+- `SMTP_SECURE` - `true` for SSL (typically port 465), `false` for STARTTLS (typically 587)
+- `RESEND_API_KEY` - Optional fallback provider key (uses HTTPS API instead of SMTP)
+- `RESEND_FROM` - Sender used with Resend (e.g. `Portfolio <onboarding@resend.dev>`)
 
 ### 3) Start behavior
 - The app binds to `process.env.PORT` (required by Render).
@@ -26,3 +31,13 @@ npm start
 ```
 
 App runs on `http://localhost:3000` by default.
+
+## Troubleshooting contact email
+
+If the contact endpoint times out, verify:
+- You are using a Gmail **App Password** (not your account password).
+- `EMAIL_USER` and `EMAIL_PASS` are set in the runtime environment.
+- Outbound SMTP to your configured `SMTP_HOST`/`SMTP_PORT` is allowed by your hosting provider.
+- If SMTP is blocked, set `RESEND_API_KEY` and `RESEND_FROM` to send via HTTPS instead of SMTP.
+
+The app now loads `.env` automatically for local development, uses shorter SMTP timeouts, and supports Resend as a non-SMTP fallback.
