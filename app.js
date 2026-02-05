@@ -10,7 +10,7 @@ var usersRouter = require('./routes/users');
 var app = express();
 
 // static files
-app.use(express.static(path.join(__dirname, "assets")));
+app.use(express.static(path.join(__dirname, 'assets')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // view engine
@@ -26,6 +26,11 @@ app.use(cookieParser());
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
+// health endpoint for Render/uptime checks
+app.get('/healthz', function (req, res) {
+  res.status(200).json({ ok: true });
+});
+
 // 404 handler
 app.use(function(req, res, next) {
   next(createError(404));
@@ -38,5 +43,12 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+if (require.main === module) {
+  var port = process.env.PORT || 3000;
+  app.listen(port, function () {
+    console.log('Server listening on port ' + port);
+  });
+}
 
 module.exports = app;

@@ -78,58 +78,6 @@ function animateNumber(element, target) {
 }
 
 
-// Form handling
-const contactForm = document.getElementById("contactForm");
-
-if (contactForm) {
-  contactForm.addEventListener("submit", async function (e) {
-    e.preventDefault(); // stop default form submission
-
-    const name = this.name.value.trim();
-    const email = this.email.value.trim();
-    const message = this.message.value.trim();
-
-    if (!name || !email || !message) {
-      alert("Please fill in all fields");
-      return;
-    }
-
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-
-    submitBtn.textContent = "Sending...";
-    submitBtn.disabled = true;
-
-    try {
-      const res = await fetch("/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message })
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        this.reset();      
-        this.name.focus();  
-        alert("Message sent successfully!");
-      } else {
-        alert("Failed to send message");
-      }
-
-    } catch (err) {
-      alert("Server error");
-      console.error(err);
-    } finally {
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
-    }
-  });
-}
-
-
-
-
 // Parallax effect for background elements
 function handleParallax() {
   const scrolled = window.pageYOffset
@@ -267,24 +215,29 @@ themeToggle.addEventListener("click", () => {
 });
 
 
-document.getElementById("contactForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+const contactForm = document.getElementById("contactForm")
 
-  const name = document.getElementById("name").value;
-  const email = document.getElementById("email").value;
-  const message = document.getElementById("message").value;
+if (contactForm) {
+  contactForm.addEventListener("submit", async (e) => {
+    e.preventDefault()
 
-  const res = await fetch("/users/contact", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name, email, message }),
-  });
+    const name = document.getElementById("name").value.trim()
+    const email = document.getElementById("email").value.trim()
+    const message = document.getElementById("message").value.trim()
 
-  if (res.ok) {
-    alert("Message sent successfully!");
-  } else {
-    alert("Something went wrong");
-  }
-});
+    const res = await fetch("/users/contact", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name, email, message }),
+    })
+
+    if (res.ok) {
+      contactForm.reset()
+      alert("Message sent successfully!")
+    } else {
+      alert("Something went wrong")
+    }
+  })
+}
