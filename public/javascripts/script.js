@@ -224,20 +224,43 @@ if (contactForm) {
     const name = document.getElementById("name").value.trim()
     const email = document.getElementById("email").value.trim()
     const message = document.getElementById("message").value.trim()
+    const submitButton = contactForm.querySelector('button[type="submit"]')
 
-    const res = await fetch("/users/contact", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name, email, message }),
-    })
+    if (!name || !email || !message) {
+      alert("Please fill in all fields.")
+      return
+    }
 
-    if (res.ok) {
-      contactForm.reset()
-      alert("Message sent successfully!")
-    } else {
-      alert("Something went wrong")
+    if (submitButton) {
+      submitButton.disabled = true
+      submitButton.textContent = "Sending..."
+    }
+
+    try {
+      const res = await fetch("/users/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, message }),
+      })
+
+      const data = await res.json().catch(() => null)
+
+      if (res.ok && data && data.success) {
+        contactForm.reset()
+        alert("Message sent successfully!")
+      } else {
+        const errorMessage = data && data.error ? data.error : "Something went wrong"
+        alert(errorMessage)
+      }
+    } catch (error) {
+      alert("Unable to send message right now. Please try again later.")
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = "Send Message"
+      }
     }
   })
 }
