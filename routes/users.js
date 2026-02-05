@@ -2,23 +2,17 @@ var express = require('express');
 var https = require('https');
 var nodemailer = require('nodemailer');
 
-var router = express.Router();
-
 function getEmailConfig() {
   var emailUser = process.env.EMAIL_USER;
+  var emailPass = process.env.EMAIL_PASS;
 
   return {
     emailUser: emailUser,
-    emailPass: process.env.EMAIL_PASS,
+    emailPass: emailPass,
     contactTo: process.env.CONTACT_TO || emailUser,
     smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
     smtpPort: Number(process.env.SMTP_PORT || 587),
     smtpSecure: String(process.env.SMTP_SECURE || 'false') === 'true',
-    smtpConnectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || 10000),
-    smtpGreetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
-    smtpSocketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 15000),
-    resendApiKey: process.env.RESEND_API_KEY,
-    resendFrom: process.env.RESEND_FROM || emailUser,
   };
 }
 
@@ -90,6 +84,9 @@ function sendWithResend(config, payload) {
     req.on('error', reject);
     req.write(body);
     req.end();
+    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT || 10000),
+    greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
+    socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 15000),
   });
 }
 
@@ -104,8 +101,9 @@ router.post('/contact', async function (req, res) {
   }
 
   var config = getEmailConfig();
+  var transporter = createTransporter(config);
 
-  if (!config.contactTo) {
+  if (!transporter || !config.contactTo) {
     return res.status(500).json({
       success: false,
       error: 'Email service is not configured. Set CONTACT_TO and provider credentials.',
@@ -126,37 +124,24 @@ router.post('/contact', async function (req, res) {
   };
 
   try {
-    if (config.resendApiKey) {
-      await sendWithResend(config, {
-        replyTo: email,
-        subject: mailPayload.subject,
-        html: mailPayload.html,
-      });
-      return res.json({ success: true, provider: 'resend' });
-    }
-
-    var transporter = createTransporter(config);
-
-    if (!transporter) {
-      return res.status(500).json({
-        success: false,
-        error: 'Email service is not configured. Set EMAIL_USER and EMAIL_PASS, or RESEND_API_KEY.',
-      });
-    }
+    await transporter.sendMail({
+      from: `"Portfolio Contact" <${config.emailUser}>`,
+      to: config.contactTo,
+      replyTo: email,
+      subject: 'New Portfolio Message',
+      html: `
+        <h3>New Message</h3>
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Message:</b><br>${message}</p>
+      `,
+    });
 
     await transporter.sendMail(mailPayload);
     return res.json({ success: true, provider: 'smtp' });
   } catch (err) {
     console.error('Email send failed:', err.message, { code: err.code, command: err.command });
-
-    if (err && err.code === 'ETIMEDOUT') {
-      return res.status(500).json({
-        success: false,
-        error: 'Email provider connection timed out. SMTP may be blocked by your host. Configure RESEND_API_KEY to send via HTTPS.',
-      });
-    }
-
-    return res.status(500).json({ success: false, error: 'Failed to send message' });
+    res.status(500).json({ success: false, error: 'Failed to send message' });
   }
 });
 
